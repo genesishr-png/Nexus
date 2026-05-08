@@ -1,7 +1,6 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Loader2, FolderPlus } from 'lucide-react';
-import { generateContractCode, LAWYERS } from '../lib/logic';
+import { generateContractCode, LAWYERS, getClients, Client } from '../lib/logic';
 import { createLegalFolders } from '../lib/folderUtils';
 import { useToast } from './Toast';
 
@@ -11,17 +10,22 @@ interface FolderGeneratorProps {
 
 export default function FolderGenerator({ onBack }: FolderGeneratorProps) {
     const { showToast } = useToast();
+    const [clients, setClients] = useState<Client[]>([]);
     const [clientName, setClientName] = useState('');
     const [matter, setMatter] = useState('');
     const [lawyerId, setLawyerId] = useState('');
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        getClients().then(setClients);
+    }, []);
 
     const handleGenerate = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
         try {
-            const { clientCode, contractNumber, caseSequence } = await generateContractCode(clientName, lawyerId);
+            const { clientCode, contractNumber, caseSequence } = await generateContractCode(clientName, lawyerId, matter);
 
             const selectedLawyer = LAWYERS.find(l => l.id === lawyerId);
             const responsibleName = selectedLawyer ? selectedLawyer.name : 'ADVOGADO';
@@ -73,9 +77,16 @@ export default function FolderGenerator({ onBack }: FolderGeneratorProps) {
                                 required
                                 value={clientName}
                                 onChange={e => setClientName(e.target.value)}
+                                list="clients-list"
                                 className="w-full bg-slate-900/80 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
-                                placeholder="Ex: Empresa X"
+                                placeholder="Digite ou selecione o cliente..."
+                                autoComplete="off"
                             />
+                            <datalist id="clients-list">
+                                {clients.map(c => (
+                                    <option key={c.id} value={c.name} />
+                                ))}
+                            </datalist>
                         </div>
 
                         <div>

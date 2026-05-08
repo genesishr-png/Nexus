@@ -1,8 +1,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Search, Trash2, FileText, Loader2, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
-import { searchContracts, deleteContract, getTotalContracts, Contract, LAWYERS, PAGE_SIZE } from '../lib/logic';
+import { ArrowLeft, Search, Trash2, FileText, Loader2, AlertTriangle, ChevronLeft, ChevronRight, Edit2, X } from 'lucide-react';
+import { searchContracts, deleteContract, updateContract, getTotalContracts, Contract, LAWYERS, PAGE_SIZE } from '../lib/logic';
+import { createLegalFolders } from '../lib/folderUtils';
 import { useToast } from './Toast';
+import { FolderPlus } from 'lucide-react';
 
 // ─── Debounce Hook ───────────────────────────────────────────────────────────────
 function useDebounce<T>(value: T, delay: number): T {
@@ -42,6 +44,80 @@ function ConfirmModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel
     );
 }
 
+// ─── Edit Modal ──────────────────────────────────────────────────────────────────
+function EditModal({ contract, onSave, onCancel }: { contract: Contract; onSave: (data: Partial<Contract>) => void; onCancel: () => void }) {
+    const [clientCode, setClientCode] = useState(contract.clientCode || contract.fullCode.split('-')[0]);
+    const [year, setYear] = useState(contract.year || contract.fullCode.split('-')[1].split('.')[0]);
+    const [contractNumber, setContractNumber] = useState(contract.contractNumber || contract.fullCode.split('.')[1]);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const fullCode = `${clientCode}-${year}.${contractNumber}`;
+        onSave({ clientCode, year, contractNumber, fullCode });
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-slate-900 border border-slate-700 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl animate-in zoom-in-95 duration-200">
+                <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-bold text-white">Editar Números</h3>
+                    <button onClick={onCancel} className="text-slate-500 hover:text-white transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                            <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Cód. Cliente</label>
+                            <input
+                                type="text"
+                                value={clientCode}
+                                onChange={(e) => setClientCode(e.target.value)}
+                                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-blue-500"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Ano</label>
+                            <input
+                                type="text"
+                                value={year}
+                                onChange={(e) => setYear(e.target.value)}
+                                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-blue-500"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Nº Contrato</label>
+                            <input
+                                type="text"
+                                value={contractNumber}
+                                onChange={(e) => setContractNumber(e.target.value)}
+                                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-blue-500"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="p-4 bg-blue-500/10 rounded-xl border border-blue-500/20 mt-4">
+                        <p className="text-[10px] uppercase tracking-widest text-blue-400 font-bold mb-1">Visualização do Código</p>
+                        <p className="text-xl font-mono font-bold text-white tracking-wider">
+                            {clientCode}-{year}.{contractNumber}
+                        </p>
+                    </div>
+
+                    <div className="flex gap-3 mt-8">
+                        <button type="button" onClick={onCancel} className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors text-sm font-medium">
+                            Cancelar
+                        </button>
+                        <button type="submit" className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition-colors text-sm font-bold">
+                            Salvar Alterações
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────────
 interface ContractListProps {
     onBack: () => void;
@@ -53,6 +129,7 @@ export default function ContractList({ onBack }: ContractListProps) {
     const [contracts, setContracts] = useState<Contract[]>([]);
     const [loading, setLoading] = useState(true);
     const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+    const [editTarget, setEditTarget] = useState<Contract | null>(null);
 
     // Pagination state
     const [cursorStack, setCursorStack] = useState<any[]>([]); // stack of page cursors
@@ -118,9 +195,52 @@ export default function ContractList({ onBack }: ContractListProps) {
         }
     };
 
+    const handleUpdate = async (data: Partial<Contract>) => {
+        if (!editTarget) return;
+        try {
+            await updateContract(editTarget.id, data);
+            setContracts(prev => prev.map(c => c.id === editTarget.id ? { ...c, ...data } : c));
+            showToast('Contrato atualizado com sucesso.', 'success');
+        } catch (e) {
+            showToast('Erro ao atualizar contrato.', 'error');
+            console.error(e);
+        } finally {
+            setEditTarget(null);
+        }
+    };
+
     const getLawyerName = (id: string) => {
         const lawyer = LAWYERS.find(l => l.id === id);
         return lawyer ? lawyer.name : 'Desconhecido';
+    };
+
+    const handleGenerateFolders = async (contract: Contract) => {
+        try {
+            const lawyer = LAWYERS.find(l => l.id === contract.lawyerId);
+            const responsibleName = lawyer ? lawyer.name : 'ADVOGADO';
+            
+            // Extract IDs from fullCode if they are missing in the document (for legacy records)
+            // fullCode format: clientCode-year.contractNumber
+            const clientCode = contract.clientCode || contract.fullCode.split('-')[0];
+            const contractNumber = contract.contractNumber || contract.fullCode.split('.')[1];
+            const caseSequence = contract.caseSequence || 1; // Fallback to 1 if not saved
+
+            const result = await createLegalFolders(
+                contract.clientName,
+                clientCode,
+                caseSequence,
+                contract.matter || 'GERAL',
+                responsibleName,
+                contractNumber
+            );
+            
+            if (result.success) {
+                showToast('Pastas criadas com sucesso!', 'success');
+            }
+        } catch (err: any) {
+            console.error(err);
+            showToast(`Erro ao criar pastas: ${err.message}`, 'error');
+        }
     };
 
     return (
@@ -129,6 +249,14 @@ export default function ContractList({ onBack }: ContractListProps) {
                 <ConfirmModal
                     onConfirm={confirmDelete}
                     onCancel={() => setDeleteTargetId(null)}
+                />
+            )}
+
+            {editTarget && (
+                <EditModal
+                    contract={editTarget}
+                    onSave={handleUpdate}
+                    onCancel={() => setEditTarget(null)}
                 />
             )}
 
@@ -178,8 +306,8 @@ export default function ContractList({ onBack }: ContractListProps) {
                                     <tr className="bg-slate-950/50 text-slate-400 uppercase text-xs tracking-wider">
                                         <th className="p-5 font-bold">Data</th>
                                         <th className="p-5 font-bold">Cliente</th>
+                                        <th className="p-5 font-bold">Matéria</th>
                                         <th className="p-5 font-bold">Código Completo</th>
-                                        <th className="p-5 font-bold">Advogado</th>
                                         <th className="p-5 font-bold text-right">Ações</th>
                                     </tr>
                                 </thead>
@@ -203,25 +331,46 @@ export default function ContractList({ onBack }: ContractListProps) {
                                                         <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400 shrink-0">
                                                             <FileText className="w-4 h-4" />
                                                         </div>
-                                                        <span className="truncate" title={contract.clientName}>
-                                                            {contract.clientName}
-                                                        </span>
+                                                        <div className="flex flex-col">
+                                                            <span className="truncate" title={contract.clientName}>
+                                                                {contract.clientName}
+                                                            </span>
+                                                            <span className="text-[10px] text-slate-500 font-medium">
+                                                                {getLawyerName(contract.lawyerId)}
+                                                            </span>
+                                                        </div>
                                                     </div>
+                                                </td>
+                                                <td className="p-5 text-slate-400 font-medium italic">
+                                                    {contract.matter || 'GERAL'}
                                                 </td>
                                                 <td className="p-5 font-mono text-blue-300 font-bold tracking-wide">
                                                     {contract.fullCode}
                                                 </td>
-                                                <td className="p-5 text-white font-medium">
-                                                    {getLawyerName(contract.lawyerId)}
-                                                </td>
                                                 <td className="p-5 text-right">
-                                                    <button
-                                                        className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                                        onClick={() => setDeleteTargetId(contract.id)}
-                                                        title="Excluir Registro"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
+                                                    <div className="flex justify-end gap-2">
+                                                        <button
+                                                            className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                            onClick={() => handleGenerateFolders(contract)}
+                                                            title="Gerar Estrutura de Pastas"
+                                                        >
+                                                            <FolderPlus className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            className="p-2 text-slate-500 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                            onClick={() => setEditTarget(contract)}
+                                                            title="Editar Números"
+                                                        >
+                                                            <Edit2 className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                            onClick={() => setDeleteTargetId(contract.id)}
+                                                            title="Excluir Registro"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))

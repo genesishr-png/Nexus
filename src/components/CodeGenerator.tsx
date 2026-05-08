@@ -33,7 +33,7 @@ export default function CodeGenerator({ onBack }: CodeGeneratorProps) {
         const lawyerId = formData.get('lawyerId') as string;
 
         try {
-            const res = await generateContractCode(clientName, lawyerId);
+            const res = await generateContractCode(clientName, lawyerId, matter);
             if (res && res.fullCode) {
                 setResult(res.fullCode);
                 getClients().then(setClients);

@@ -13,9 +13,12 @@ export type Contract = {
     id: string;
     fullCode: string;
     clientName: string;
+    clientCode: string;
     contractNumber: string;
+    caseSequence: number;
     year: string;
     lawyerId: string;
+    matter: string;
     createdAt: string;
 };
 
@@ -44,7 +47,7 @@ export async function getClients(): Promise<Client[]> {
 }
 
 // ─── Code Generation ─────────────────────────────────────────────────────────────
-export async function generateContractCode(clientName: string, lawyerId: string) {
+export async function generateContractCode(clientName: string, lawyerId: string, matter: string = 'GERAL') {
     if (!clientName || !lawyerId) throw new Error('Dados incompletos');
 
     const clientsRef = collection(db, 'clients');
@@ -93,11 +96,14 @@ export async function generateContractCode(clientName: string, lawyerId: string)
 
     await addDoc(collection(db, 'cases'), {
         fullCode,
+        clientCode,
         contractNumber,
+        caseSequence,
         year,
         lawyerId: lawyerId.padStart(2, '0'),
         clientId,
         clientName: clientName.trim(),
+        matter: matter.toUpperCase(),
         createdAt: new Date().toISOString(),
     });
 
@@ -168,4 +174,8 @@ export async function getTotalContracts(): Promise<number> {
 
 export async function deleteContract(id: string) {
     await deleteDoc(doc(db, 'cases', id));
+}
+
+export async function updateContract(id: string, data: Partial<Contract>) {
+    await updateDoc(doc(db, 'cases', id), data);
 }
