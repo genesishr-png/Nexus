@@ -5,8 +5,9 @@ import CodeGenerator from './components/CodeGenerator';
 import SplashScreen from './components/SplashScreen';
 import ImportData from './components/ImportData';
 import ContractList from './components/ContractList';
+import OrganizerPage from './components/OrganizerPage';
 
-type Page = 'dashboard' | 'folder' | 'code' | 'history' | 'import';
+type Page = 'dashboard' | 'folder' | 'code' | 'history' | 'import' | 'organizer';
 
 function App() {
     const [page, setPage] = useState<Page>('dashboard');
@@ -39,6 +40,10 @@ function App() {
 
                 {page === 'import' && (
                     <ImportData onBack={() => setPage('dashboard')} />
+                )}
+
+                {page === 'organizer' && (
+                    <OrganizerPage onBack={() => setPage('dashboard')} />
                 )}
             </main>
         </div>

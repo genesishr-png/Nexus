@@ -1,6 +1,6 @@
 
 
-import { FolderOpen, FileCode2, Scale, Zap, Clock, Upload } from 'lucide-react';
+import { FolderOpen, FileCode2, Scale, Zap, Clock, Upload, FolderSync } from 'lucide-react';
 
 interface DashboardProps {
     onNavigate: (page: 'folder' | 'code' | 'history' | 'import') => void;
@@ -31,7 +31,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                     </p>
                 </header>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {/* Folder Generator Card */}
                     <button
                         onClick={() => onNavigate('folder')}
@@ -50,6 +50,28 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                             </p>
                             <span className="inline-flex items-center text-xs font-bold text-blue-500 uppercase tracking-widest group-hover:text-blue-400">
                                 Acessar Ferramenta <Zap className="w-3 h-3 ml-2" />
+                            </span>
+                        </div>
+                    </button>
+
+                    {/* RAG File Organizer Card */}
+                    <button
+                        onClick={() => onNavigate('organizer')}
+                        className="group relative h-[300px] bg-slate-900/40 border border-slate-800 hover:border-purple-500/50 rounded-3xl p-8 transition-all duration-500 hover:transform hover:-translate-y-2 hover:shadow-[0_20px_40px_-15px_rgba(147,51,234,0.2)] flex flex-col items-start justify-end overflow-hidden"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-purple-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+
+                        <div className="mb-auto p-4 bg-purple-500/10 rounded-2xl group-hover:bg-purple-500/20 transition-colors">
+                            <FolderSync className="w-10 h-10 text-purple-400 group-hover:text-purple-300 transition-colors" />
+                        </div>
+
+                        <div className="relative z-10">
+                            <h2 className="text-3xl font-bold text-white mb-2 group-hover:text-purple-200 transition-colors">Organizador RAG</h2>
+                            <p className="text-slate-400 text-sm leading-relaxed max-w-xs mb-4">
+                                Classifique e organize seus arquivos e documentos jurídicos na estrutura correta com IA.
+                            </p>
+                            <span className="inline-flex items-center text-xs font-bold text-purple-500 uppercase tracking-widest group-hover:text-purple-400">
+                                Acessar Agente <Zap className="w-3 h-3 ml-2" />
                             </span>
                         </div>
                     </button>
