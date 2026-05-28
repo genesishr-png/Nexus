@@ -305,7 +305,8 @@ const server = http.createServer((req, res) => {
         sendSSE('log', `Iniciando Agente RAG: python main.py --input-dir "${settings.input_dir}" --output-dir "${settings.output_dir}"${settings.dry_run ? ' --dry-run' : ''}\n`);
 
         const pyProcess = spawn('python', args, {
-            cwd: CLASSIFIER_DIR
+            cwd: CLASSIFIER_DIR,
+            env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
         });
 
         pyProcess.stdout.on('data', (data) => {
