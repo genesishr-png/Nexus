@@ -8,8 +8,8 @@ const vite = spawn('npx.cmd', ['vite'], {
     shell: true
 });
 
-// Start Node server.js (runs on port 5000)
-const server = spawn('node', ['server.js'], {
+// Start Node server.cjs (runs on port 5000)
+const server = spawn('node', ['server.cjs'], {
     stdio: 'inherit'
 });
 
