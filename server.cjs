@@ -321,13 +321,13 @@ const server = http.createServer((req, res) => {
             const lines = data.toString().split('\n');
             lines.forEach(line => {
                 if (line.trim()) {
-                    sendSSE('error', line);
+                    sendSSE('log', `[ERRO] ${line}`);
                 }
             });
         });
 
         pyProcess.on('error', (err) => {
-            sendSSE('error', `Falha ao iniciar script Python: ${err.message}`);
+            sendSSE('log', `[ERRO] Falha ao iniciar script Python: ${err.message}`);
             sendSSE('end', { code: -1 });
             res.end();
         });
