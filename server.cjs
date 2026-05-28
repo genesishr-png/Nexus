@@ -322,7 +322,12 @@ const server = http.createServer((req, res) => {
             const lines = data.toString().split('\n');
             lines.forEach(line => {
                 if (line.trim()) {
-                    sendSSE('log', `[ERRO] ${line}`);
+                    const lower = line.toLowerCase();
+                    if (lower.includes('error') || lower.includes('fail') || lower.includes('exception') || lower.includes('traceback') || lower.includes('warning')) {
+                        sendSSE('log', `[ERRO] ${line}`);
+                    } else {
+                        sendSSE('log', line);
+                    }
                 }
             });
         });
