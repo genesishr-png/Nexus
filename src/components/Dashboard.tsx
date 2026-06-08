@@ -1,14 +1,33 @@
 
 
-import { FolderOpen, FileCode2, Scale, Zap, Clock, Upload, FolderSync } from 'lucide-react';
+import { signOut } from 'firebase/auth';
+import { auth } from '../lib/firebase';
+import { LogOut, FolderOpen, FileCode2, Scale, Zap, Clock, Upload, FolderSync } from 'lucide-react';
 
 interface DashboardProps {
     onNavigate: (page: 'folder' | 'code' | 'history' | 'import' | 'organizer') => void;
 }
 
 export default function Dashboard({ onNavigate }: DashboardProps) {
+    const handleLogout = async () => {
+        try {
+            await signOut(auth);
+        } catch (error) {
+            console.error('Erro ao sair:', error);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-[#050511] text-white flex flex-col items-center justify-center p-8 relative overflow-hidden font-sans">
+
+            {/* Botão Sair */}
+            <button
+                onClick={handleLogout}
+                className="absolute top-6 right-6 z-20 flex items-center gap-2 px-4 py-2 bg-slate-900/60 hover:bg-red-500/20 border border-slate-800 hover:border-red-500/30 rounded-xl text-slate-400 hover:text-red-400 text-xs font-bold uppercase tracking-wider transition-all duration-300 backdrop-blur-md"
+            >
+                <LogOut className="w-4 h-4" />
+                <span>Sair</span>
+            </button>
 
             {/* Dynamic Background */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
