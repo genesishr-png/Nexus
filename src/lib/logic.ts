@@ -1,6 +1,6 @@
 
 import { db } from './firebase';
-import { collection, addDoc, getDocs, query, where, orderBy, limit, startAfter, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, orderBy, limit, startAfter, deleteDoc, doc, updateDoc, getCountFromServer } from 'firebase/firestore';
 
 // ─── Types ───────────────────────────────────────────────────────────────────────
 export type Client = {
@@ -47,32 +47,76 @@ export async function getClients(): Promise<Client[]> {
 }
 
 // ─── Code Generation ─────────────────────────────────────────────────────────────
+async function generateUniqueClientCode(): Promise<string> {
+    const clientsRef = collection(db, 'clients');
+    let code = '';
+    let isUnique = false;
+    let attempts = 0;
+    while (!isUnique && attempts < 100) {
+        code = Math.floor(1000 + Math.random() * 9000).toString();
+        const snap = await getDocs(query(clientsRef, where('code', '==', code)));
+        if (snap.empty) {
+            isUnique = true;
+        }
+        attempts++;
+    }
+    if (!isUnique) {
+        code = Math.floor(10000 + Math.random() * 90000).toString();
+    }
+    return code;
+}
+
 export async function generateContractCode(clientName: string, lawyerId: string, matter: string = 'GERAL') {
     if (!clientName || !lawyerId) throw new Error('Dados incompletos');
 
+    const nameTrimmed = clientName.trim();
+    const nameLower = nameTrimmed.toLowerCase();
     const clientsRef = collection(db, 'clients');
-    const clientSnap = await getDocs(query(clientsRef, where('name', '==', clientName.trim())));
+
+    let clientDoc = null;
+    
+    // 1. Tenta buscar por nameLower (otimizado)
+    const clientSnapLower = await getDocs(query(clientsRef, where('nameLower', '==', nameLower)));
+    if (!clientSnapLower.empty) {
+        clientDoc = clientSnapLower.docs[0];
+    } else {
+        // 2. Tenta buscar por name exato (caso de registros legados)
+        const clientSnapExact = await getDocs(query(clientsRef, where('name', '==', nameTrimmed)));
+        if (!clientSnapExact.empty) {
+            clientDoc = clientSnapExact.docs[0];
+        } else {
+            // 3. Fallback: busca local em todos para evitar duplicidades caso a caixa do nome legado seja diferente
+            const allClientsSnap = await getDocs(clientsRef);
+            clientDoc = allClientsSnap.docs.find(d => {
+                const name = d.data().name;
+                return name && name.trim().toLowerCase() === nameLower;
+            }) ?? null;
+        }
+    }
 
     let clientCode: string;
     let clientId: string;
 
-    if (!clientSnap.empty) {
-        const clientDoc = clientSnap.docs[0];
-        const d = clientDoc.data();
+    if (clientDoc) {
         clientId = clientDoc.id;
+        const d = clientDoc.data();
+        
+        // Atualiza o nameLower no registro legado para futuras buscas rápidas
+        if (!d.nameLower) {
+            await updateDoc(doc(clientsRef, clientId), { nameLower });
+        }
 
         if (d.code) {
-            // Cliente já tem código — usa o existente
             clientCode = d.code;
         } else {
-            // Cliente existe mas sem campo `code` — gera e salva
-            clientCode = Math.floor(1000 + Math.random() * 9000).toString();
+            clientCode = await generateUniqueClientCode();
             await updateDoc(doc(clientsRef, clientId), { code: clientCode });
         }
     } else {
-        clientCode = Math.floor(1000 + Math.random() * 9000).toString();
+        clientCode = await generateUniqueClientCode();
         const newClient = await addDoc(clientsRef, {
-            name: clientName.trim(),
+            name: nameTrimmed,
+            nameLower,
             code: clientCode,
             createdAt: new Date().toISOString(),
         });
@@ -91,8 +135,9 @@ export async function generateContractCode(clientName: string, lawyerId: string,
         if (snap.empty) isUnique = true;
     }
 
-    const countSnap = await getDocs(query(collection(db, 'cases'), where('clientId', '==', clientId)));
-    const caseSequence = countSnap.size + 1;
+    // Otimização: usando getCountFromServer para sequência de casos do cliente
+    const countSnap = await getCountFromServer(query(collection(db, 'cases'), where('clientId', '==', clientId)));
+    const caseSequence = countSnap.data().count + 1;
 
     await addDoc(collection(db, 'cases'), {
         fullCode,
@@ -102,7 +147,7 @@ export async function generateContractCode(clientName: string, lawyerId: string,
         year,
         lawyerId: lawyerId.padStart(2, '0'),
         clientId,
-        clientName: clientName.trim(),
+        clientName: nameTrimmed,
         matter: matter.toUpperCase(),
         createdAt: new Date().toISOString(),
     });
@@ -165,8 +210,8 @@ export async function searchContracts(
 
 export async function getTotalContracts(): Promise<number> {
     try {
-        const snapshot = await getDocs(collection(db, 'cases'));
-        return snapshot.size;
+        const snapshot = await getCountFromServer(collection(db, 'cases'));
+        return snapshot.data().count;
     } catch {
         return 0;
     }

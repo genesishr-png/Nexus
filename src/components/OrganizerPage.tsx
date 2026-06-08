@@ -5,7 +5,6 @@ import {
     Terminal as TerminalIcon,
     History,
     Play,
-    Pause,
     UploadCloud,
     FolderOpen,
     KeyRound,
@@ -18,7 +17,6 @@ import {
     Search,
     SlidersHorizontal,
     Cpu,
-    FolderSync,
     X,
     FileCheck
 } from 'lucide-react';

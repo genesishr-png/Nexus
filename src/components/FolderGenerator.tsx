@@ -24,22 +24,48 @@ export default function FolderGenerator({ onBack }: FolderGeneratorProps) {
         e.preventDefault();
         setLoading(true);
 
+        const nameTrimmed = clientName.trim();
+        const matchedClient = clients.find(c => c.name.trim().toLowerCase() === nameTrimmed.toLowerCase());
+        const finalClientName = matchedClient ? matchedClient.name : nameTrimmed;
+
         try {
-            const { clientCode, contractNumber, caseSequence } = await generateContractCode(clientName, lawyerId, matter);
+            // 1. Obter o diretório primeiro para garantir que o usuário não cancelará depois do salvamento no Firestore
+            let baseDirHandle = null;
+            if ('showDirectoryPicker' in window) {
+                try {
+                    // @ts-ignore
+                    baseDirHandle = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'desktop' });
+                } catch (pickerErr: any) {
+                    if (pickerErr.name === 'AbortError') {
+                        showToast('Operação cancelada pelo usuário. O contrato não foi gerado.', 'warning');
+                        setLoading(false);
+                        return;
+                    }
+                    throw pickerErr;
+                }
+            }
+
+            // 2. Gerar o código no Firestore
+            const { clientCode, contractNumber, caseSequence } = await generateContractCode(finalClientName, lawyerId, matter);
 
             const selectedLawyer = LAWYERS.find(l => l.id === lawyerId);
             const responsibleName = selectedLawyer ? selectedLawyer.name : 'ADVOGADO';
 
+            // 3. Criar as pastas utilizando o handle pré-obtido
             const result = await createLegalFolders(
-                clientName,
+                finalClientName,
                 clientCode,
                 caseSequence,
                 matter,
                 responsibleName,
-                contractNumber
+                contractNumber,
+                baseDirHandle
             );
 
             showToast(result.message, 'success');
+            
+            // Recarregar lista de clientes para incluir novos cadastros
+            getClients().then(setClients);
         } catch (err: any) {
             console.error(err);
             showToast(`Erro: ${err.message || 'Falha desconhecida. Verifique a conexão.'}`, 'error');

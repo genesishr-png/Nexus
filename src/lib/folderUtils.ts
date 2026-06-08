@@ -21,7 +21,8 @@ export async function createLegalFolders(
     caseSequence: number,
     matter: string,
     responsibleName: string,
-    contractNumber: string
+    contractNumber: string,
+    existingBaseDirHandle?: any
 ) {
     const cleanClientName = sanitize(clientName) || "CLIENTE_SEM_NOME";
     const cleanMatter = sanitize(matter) || "GERAL";
@@ -36,9 +37,9 @@ export async function createLegalFolders(
 
     try {
         // @ts-ignore
-        if ('showDirectoryPicker' in window) {
+        if ('showDirectoryPicker' in window || existingBaseDirHandle) {
             // @ts-ignore
-            const baseDirHandle = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'desktop' });
+            const baseDirHandle = existingBaseDirHandle || await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'desktop' });
 
             // Create Client Folder
             const clientDirHandle = await baseDirHandle.getDirectoryHandle(clientFolderName, { create: true });

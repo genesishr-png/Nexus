@@ -32,28 +32,55 @@ export default function CodeGenerator({ onBack }: CodeGeneratorProps) {
         const clientName = formData.get('clientName') as string;
         const lawyerId = formData.get('lawyerId') as string;
 
+        const nameTrimmed = clientName.trim();
+        const matchedClient = clients.find(c => c.name.trim().toLowerCase() === nameTrimmed.toLowerCase());
+        const finalClientName = matchedClient ? matchedClient.name : nameTrimmed;
+
         try {
-            const res = await generateContractCode(clientName, lawyerId, matter);
+            let baseDirHandle = null;
+
+            // 1. Validar e obter o diretório primeiro se "Criar pastas" estiver ativo
+            if (createFolder) {
+                if (!matter.trim()) {
+                    showToast('Por favor, informe a Matéria para criar a pasta.', 'warning');
+                    setLoading(false);
+                    return;
+                }
+
+                if ('showDirectoryPicker' in window) {
+                    try {
+                        // @ts-ignore
+                        baseDirHandle = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'desktop' });
+                    } catch (pickerErr: any) {
+                        if (pickerErr.name === 'AbortError') {
+                            showToast('Operação cancelada pelo usuário. O contrato não foi gerado.', 'warning');
+                            setLoading(false);
+                            return;
+                        }
+                        throw pickerErr;
+                    }
+                }
+            }
+
+            // 2. Gerar o código no Firestore
+            const res = await generateContractCode(finalClientName, lawyerId, matter);
             if (res && res.fullCode) {
                 setResult(res.fullCode);
                 getClients().then(setClients);
 
+                // 3. Criar as pastas
                 if (createFolder) {
-                    if (!matter.trim()) {
-                        showToast('Por favor, informe a Matéria para criar a pasta.', 'warning');
-                        return;
-                    }
-
                     const selectedLawyer = LAWYERS.find(l => l.id === lawyerId);
                     const responsibleName = selectedLawyer ? selectedLawyer.name : 'ADVOGADO';
 
                     const folderRes = await createLegalFolders(
-                        clientName,
+                        finalClientName,
                         res.clientCode,
                         res.caseSequence,
                         matter,
                         responsibleName,
-                        res.contractNumber
+                        res.contractNumber,
+                        baseDirHandle
                     );
 
                     if (folderRes.success) {

@@ -3,7 +3,7 @@
 import { FolderOpen, FileCode2, Scale, Zap, Clock, Upload, FolderSync } from 'lucide-react';
 
 interface DashboardProps {
-    onNavigate: (page: 'folder' | 'code' | 'history' | 'import') => void;
+    onNavigate: (page: 'folder' | 'code' | 'history' | 'import' | 'organizer') => void;
 }
 
 export default function Dashboard({ onNavigate }: DashboardProps) {
