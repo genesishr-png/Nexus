@@ -327,11 +327,11 @@ export default function ContractList({ onBack }: ContractListProps) {
                                                     {new Date(contract.createdAt).toLocaleDateString('pt-BR')}
                                                 </td>
                                                 <td className="p-5 font-medium text-white max-w-[200px] sm:max-w-xs md:max-w-sm">
-                                                    <div className="flex items-center gap-3">
+                                                    <div className="flex items-center gap-3 min-w-0">
                                                         <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400 shrink-0">
                                                             <FileText className="w-4 h-4" />
                                                         </div>
-                                                        <div className="flex flex-col">
+                                                        <div className="flex flex-col min-w-0">
                                                             <span className="truncate" title={contract.clientName}>
                                                                 {contract.clientName}
                                                             </span>
