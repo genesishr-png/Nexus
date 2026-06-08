@@ -62,14 +62,21 @@ export default function ImportData({ onBack }: ImportPageProps) {
                     const collectionName = item._collection || 'cases';
 
                     if (collectionName === 'clients') {
-                        if (!item.name && !item.nome) continue;
+                        const finalName = (item.name || item.nome || '').trim();
+                        if (!finalName) continue;
 
-                        const clientData = {
-                            name: item.name || item.nome,
+                        const clientData: any = {
+                            name: finalName,
+                            nameLower: finalName.toLowerCase(),
+                            code: item.code || '',
                             email: item.email || '',
                             phone: item.phone || item.telefone || '',
-                            importedAt: new Date(),
+                            importedAt: new Date().toISOString(),
                         };
+
+                        if (item.createdAt) {
+                            clientData.createdAt = item.createdAt;
+                        }
 
                         const docRef = item.id
                             ? doc(db, 'clients', item.id)
@@ -80,7 +87,7 @@ export default function ImportData({ onBack }: ImportPageProps) {
                     } else if (collectionName === 'contracts' || collectionName === 'cases') {
                         const caseData = {
                             ...item,
-                            importedAt: new Date(),
+                            importedAt: new Date().toISOString(),
                             clientName: item.clientName || item.client || 'Desconhecido',
                             caseTitle: item.caseTitle || item.title || 'Caso Migrado',
                             status: item.status || 'Ativo',
